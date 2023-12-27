@@ -1,109 +1,81 @@
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import math
-import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import sympy as sp
 
-class ArrowedVector:
-    def get_x(S):
-        return np.concatenate([[S.x0, S.x1], S.x_arrow])
+matplotlib.use("TkAgg")
 
-    def get_y(S):
-        return np.concatenate([[S.y0, S.y1], S.y_arrow])
-
-    def rotate_2d(S, X, Y, alph):
-        R_X = X * np.cos(alph) - Y * np.sin(alph)
-        R_Y = X * np.sin(alph) + Y * np.cos(alph)
-        return R_X, R_Y
-
-    def set(S, A, B):
-        S.x0, S.y0 = A[0], A[1]
-        S.x1, S.y1 = B[0], B[1]
-        S.x_arrow = np.array([-0.05, 0, -0.05])
-        S.y_arrow = np.array([0.025, 0, -0.025])
-        S.x_arrow, S.y_arrow = S.rotate_2d(S.x_arrow, S.y_arrow, math.atan2(S.y1 - S.y0, S.x1 - S.x0))
-        if A == B:
-            S.x_arrow, S.y_arrow = np.zeros(3), np.zeros(3)
-        S.x_arrow += B[0]
-        S.y_arrow += B[1]
-
-    def __init__(S, A, B) -> None:
-        S.x0, S.y0 = A[0], A[1]
-        S.x1, S.y1 = B[0], B[1]
-        S.x_arrow = np.array([-0.05, 0, 0.05])
-        S.y_arrow = np.array([0.025, 0, -0.25])
-        S.x_arrow, S.y_arrow = S.rotate_2d(S.x_arrow, S.y_arrow, math.atan2(S.y1 - S.y0, S.x1 - S.x0))
-        if A == B:
-            S.x_arrow, S.y_arrow = np.zeros(3), np.zeros(3)
-        S.x_arrow += B[0]
-        S.y_arrow += B[1]
-
-t = sp.Symbol("t")
-
-r = 2 + sp.sin(6*t)
-phi = 6.5 * t + 1.2 * sp.cos(6 * t)
-
+t = sp.Symbol('t')
+T = np.linspace(1, 40, 1000)
+R = 4
+Omega = 1
+r = 2 + sp.sin(6 * t)
+phi = 6.5 * t + 1.2 * sp.cos(6*t)
 x = r * sp.cos(phi)
 y = r * sp.sin(phi)
-
-vx = sp.diff(x, t)
-vy = sp.diff(y, t)
-
-wx = sp.diff(vx, t)
-wy = sp.diff(vy, t)
-
-nvy = vy / (vx**2 + vy**2)**0.5
-nwx = wx / (wx**2 + wy**2)**0.5
-nwy = wy / (wx**2 + wy**2)**0.5
-nvx = vx / (vx**2 + vy**2)**0.5
-
-
-T = np.linspace(0, 10, 1000)
-
-X, Y = np.zeros_like(T), np.zeros_like(T)
-Vx, Vy, Wx, Wy = np.zeros_like(T), np.zeros_like(T), np.zeros_like(T), np.zeros_like(T)
-
-V = ArrowedVector([0, 0], [0, 0])
-W = ArrowedVector([0, 0], [0, 0])
-R0 = ArrowedVector([0, 0], [0, 0])
-
-for i, time in enumerate(T):
-    X[i] = sp.Subs(x, t, time)
-    Y[i] = sp.Subs(y, t, time)
-    Wx[i] = sp.Subs(nwx, t, time)
-    Wy[i] = sp.Subs(nwy, t, time)
-    Vx[i] = sp.Subs(nvx, t, time)
-    Vy[i] = sp.Subs(nvy, t, time)
-
-fig, ax1 = plt.subplots(1, 1)
+Vx = sp.diff(x, t)
+Vy = sp.diff(y, t)
+Vmod = sp.sqrt(Vx * Vx + Vy * Vy)
+wx = sp.diff(Vx, t)
+wy = sp.diff(Vy, t)
+wmod = sp.sqrt(wx * wx + wy * wy)
+wtau = sp.diff(Vmod, t)
+rho = (Vmod * Vmod) / sp.sqrt(wmod * wmod - wtau * wtau)
+X = np.zeros_like(T)
+Y = np.zeros_like(T)
+VX = np.zeros_like(T)
+VY = np.zeros_like(T)
+AX = np.zeros_like(T)
+AY = np.zeros_like(T)
+Rho = np.zeros_like(T)
+Phi = np.zeros_like(T)
+for i in np.arange(len(T)):
+    X[i] = sp.Subs(x, t, T[i])
+    Y[i] = sp.Subs(y, t, T[i])
+    VX[i] = sp.Subs(Vx, t, T[i])
+    VY[i] = sp.Subs(Vy, t, T[i])
+    AX[i] = sp.Subs(wx, t, T[i])
+    AY[i] = sp.Subs(wy, t, T[i])
+    Rho[i] = sp.Subs(rho, t, T[i])
+    Phi[i] = sp.Subs(phi, t, T[i])
+fig = plt.figure()
+ax1 = fig.add_subplot(1, 1, 1)
 ax1.axis('equal')
+ax1.set(xlim=[-4 * R, 4 * R], ylim=[-R, R])
 ax1.plot(X, Y)
+P, = ax1.plot(X[0], Y[0], marker='o')
+Vline, = ax1.plot([X[0], X[0] + VX[0]], [Y[0], Y[0] + VY[0]], 'r')
+Aline, = ax1.plot([X[0], X[0] + AX[0]], [Y[0], Y[0] + AY[0]], 'y')
+Tline, = ax1.plot([0, X[0]], [0, Y[0]], 'c')
+ArrowX = np.array([-0.2 * R, 0, -0.2 * R])
+ArrowY = np.array([0.1 * R, 0, -0.1 * R])
+ArrowAX = np.array([-0.2 * R, 0, -0.2 * R])
+ArrowAY = np.array([0.1 * R, 0, -0.1 * R])
 
-ax1.set(xlim = [-5, 5], ylim = [-5, 5])
+def anima(j):
+    P.set_data(X[j], Y[j])
+    Vline.set_data([X[j], X[j] + VX[j]], [Y[j], Y[j] + VY[j]])
+    Aline.set_data([X[j], X[j] + AX[j]], [Y[j], Y[j] + AY[j]])
+    Tline.set_data([0, X[j]], [0, Y[j]])
+    RArrowX, RArrowY = Rot2D(ArrowX, ArrowY, math.atan2(VY[j], VX[j]))
+    RArrowAX, RArrowAY = Rot2D(ArrowAX, ArrowAY, math.atan2(AY[j], AX[j]))
 
-P, = ax1.plot(X[0], Y[0], marker = 'o')
-anim_R0, = ax1.plot(R0.get_x(), R0.get_y())
-anim_V, = ax1.plot(V.get_x(), V.get_y())
-anim_W, = ax1.plot(W.get_x(), W.get_y())
-
-R0.set([0, 0], [Vx[0], Vy[0]])
-anim_R0.set_data(R0.get_x(), R0.get_y())
-
-def animate_frame(i):
-    P.set_xdata(X[i])
-    P.set_ydata(Y[i])
+    VArrow.set_data(RArrowX + X[j] + VX[j], RArrowY + Y[j] + VY[j])
+    AArrow.set_data(RArrowAX + X[j] + AX[j], RArrowAY + Y[j] + AY[j])
+    return P, Vline, VArrow, AArrow, Aline, Tline
 
 
-    R0.set([0, 0], [X[i], Y[i]])
-    anim_R0.set_data(R0.get_x(), R0.get_y())
+def Rot2D(X, Y, Alpha):
+    RX = X * np.cos(Alpha - Y * np.sin(Alpha))
+    RY = X * np.sin(Alpha + Y * np.cos(Alpha))
+    return RX, RY
 
-    V.set([X[i], Y[i]], [X[i] + Vx[i], Y[i] + Vy[i]])
-    anim_V.set_data(V.get_x(), V.get_y())
 
-    W.set([X[i], Y[i]], [X[i] + Wx[i], Y[i] + Wy[i]])
-    anim_W.set_data(W.get_x(), W.get_y())
-
-    return P, anim_R0, anim_V, anim_W
-
-animation = FuncAnimation(fig, animate_frame, frames = 1000, interval = 2, repeat = True)
+RArrowX, RArrowY = Rot2D(ArrowX, ArrowY, math.atan2(VY[0], VX[0]))
+RArrowAX, RArrowAY = Rot2D(ArrowAX, ArrowAY, math.atan2(AY[0], AX[0]))
+VArrow, = ax1.plot(RArrowX + X[0] + VX[0], RArrowY + Y[0] + VY[0])
+AArrow, = ax1.plot(RArrowAX + X[0] + AX[0], RArrowAY + Y[0] + AY[0])
+anim = FuncAnimation(fig, anima, frames=1000, interval=30, blit=True)
 plt.show()
